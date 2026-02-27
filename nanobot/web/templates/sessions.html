@@ -1,0 +1,48 @@
+{% extends "base.html" %}
+{% block title_suffix %} - Sessions{% endblock %}
+
+{% block content %}
+<h1>Sessions</h1>
+
+{% if sessions %}
+<table>
+    <thead>
+        <tr>
+            <th>Channel</th>
+            <th>Chat ID</th>
+            <th>Created</th>
+            <th>Updated</th>
+            <th></th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for s in sessions %}
+        <tr>
+            <td><span class="badge badge-purple">{{ s.channel }}</span></td>
+            <td><a href="/sessions/{{ s.key }}">{{ s.chat_id }}</a></td>
+            <td class="text-muted text-sm">{{ s.created_at }}</td>
+            <td class="text-muted text-sm">{{ s.updated_at }}</td>
+            <td>
+                <button class="btn btn-danger btn-sm" onclick="deleteSession('{{ s.key }}')">Delete</button>
+            </td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+{% else %}
+<div class="empty">
+    <p>No sessions yet.</p>
+</div>
+{% endif %}
+{% endblock %}
+
+{% block scripts %}
+<script>
+async function deleteSession(key) {
+    if (!confirm('Delete session "' + key + '"?')) return;
+    await apiCall('DELETE', '/api/sessions/' + key);
+    showToast('Session deleted', true);
+    setTimeout(() => location.reload(), 500);
+}
+</script>
+{% endblock %}

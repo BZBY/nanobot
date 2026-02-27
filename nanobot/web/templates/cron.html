@@ -1,0 +1,161 @@
+{% extends "base.html" %}
+{% block title_suffix %} - Cron Jobs{% endblock %}
+
+{% block content %}
+<h1>Cron Jobs</h1>
+
+<div class="mb-16">
+    <button class="btn btn-primary" onclick="openAddModal()">Add Job</button>
+</div>
+
+{% if jobs %}
+<table>
+    <thead>
+        <tr>
+            <th>ID</th>
+            <th>Name</th>
+            <th>Schedule</th>
+            <th>Message</th>
+            <th>Status</th>
+            <th>Next Run</th>
+            <th>Last Run</th>
+            <th></th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for j in jobs %}
+        <tr>
+            <td class="mono text-sm">{{ j.id }}</td>
+            <td>{{ j.name }}</td>
+            <td class="mono text-sm">{{ j.schedule }}</td>
+            <td class="text-sm" style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="{{ j.message }}">{{ j.message }}</td>
+            <td>
+                {% if j.enabled %}
+                    <span class="badge badge-green">enabled</span>
+                {% else %}
+                    <span class="badge badge-muted">disabled</span>
+                {% endif %}
+                {% if j.last_status == 'error' %}
+                    <span class="badge badge-red">error</span>
+                {% elif j.last_status == 'ok' %}
+                    <span class="badge badge-green">ok</span>
+                {% endif %}
+            </td>
+            <td class="text-muted text-sm">{{ j.next_run }}</td>
+            <td class="text-muted text-sm">{{ j.last_run }}</td>
+            <td style="white-space:nowrap;">
+                <button class="btn btn-sm" onclick="toggleJob('{{ j.id }}')">
+                    {{ 'Disable' if j.enabled else 'Enable' }}
+                </button>
+                <button class="btn btn-danger btn-sm" onclick="deleteJob('{{ j.id }}')">Delete</button>
+            </td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+{% else %}
+<div class="empty">
+    <p>No cron jobs configured.</p>
+</div>
+{% endif %}
+
+<!-- Add Job Modal -->
+<div id="addModal" class="modal-backdrop">
+    <div class="modal">
+        <h2>Add Cron Job</h2>
+        <div class="form-group">
+            <label>Name</label>
+            <input id="jName" type="text" placeholder="daily-report">
+        </div>
+        <div class="form-group">
+            <label>Message (prompt for agent)</label>
+            <input id="jMessage" type="text" placeholder="Generate a daily summary">
+        </div>
+        <div class="form-group">
+            <label>Schedule Type</label>
+            <select id="jType" onchange="toggleScheduleFields()">
+                <option value="every">Interval (every N seconds)</option>
+                <option value="cron">Cron Expression</option>
+            </select>
+        </div>
+        <div id="everyFields" class="form-group">
+            <label>Interval (seconds)</label>
+            <input id="jEvery" type="number" value="3600" min="10">
+        </div>
+        <div id="cronFields" style="display:none;">
+            <div class="form-group">
+                <label>Cron Expression</label>
+                <input id="jCron" type="text" placeholder="0 9 * * *">
+            </div>
+            <div class="form-group">
+                <label>Timezone (optional)</label>
+                <input id="jTz" type="text" placeholder="America/Vancouver">
+            </div>
+        </div>
+        <div class="form-row">
+            <div class="form-group">
+                <label>Deliver response</label>
+                <select id="jDeliver">
+                    <option value="false">No</option>
+                    <option value="true">Yes</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label>Channel</label>
+                <input id="jChannel" type="text" placeholder="telegram">
+            </div>
+            <div class="form-group">
+                <label>To</label>
+                <input id="jTo" type="text" placeholder="user_id">
+            </div>
+        </div>
+        <div class="actions">
+            <button class="btn" onclick="closeAddModal()">Cancel</button>
+            <button class="btn btn-primary" onclick="addJob()">Add</button>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function openAddModal() { document.getElementById('addModal').classList.add('open'); }
+function closeAddModal() { document.getElementById('addModal').classList.remove('open'); }
+
+function toggleScheduleFields() {
+    const t = document.getElementById('jType').value;
+    document.getElementById('everyFields').style.display = t === 'every' ? '' : 'none';
+    document.getElementById('cronFields').style.display = t === 'cron' ? '' : 'none';
+}
+
+async function addJob() {
+    const body = {
+        name: document.getElementById('jName').value,
+        message: document.getElementById('jMessage').value,
+        schedule_type: document.getElementById('jType').value,
+        every_seconds: parseInt(document.getElementById('jEvery').value) || 3600,
+        cron_expr: document.getElementById('jCron').value,
+        tz: document.getElementById('jTz').value || null,
+        deliver: document.getElementById('jDeliver').value === 'true',
+        channel: document.getElementById('jChannel').value || null,
+        to: document.getElementById('jTo').value || null,
+    };
+    await apiCall('POST', '/api/cron', body);
+    showToast('Job added', true);
+    setTimeout(() => location.reload(), 500);
+}
+
+async function toggleJob(id) {
+    await apiCall('PUT', '/api/cron/' + id + '/toggle');
+    showToast('Job toggled', true);
+    setTimeout(() => location.reload(), 500);
+}
+
+async function deleteJob(id) {
+    if (!confirm('Delete job ' + id + '?')) return;
+    await apiCall('DELETE', '/api/cron/' + id);
+    showToast('Job deleted', true);
+    setTimeout(() => location.reload(), 500);
+}
+</script>
+{% endblock %}

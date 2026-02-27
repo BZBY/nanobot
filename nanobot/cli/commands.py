@@ -292,6 +292,13 @@ def gateway(
         channels_config=config.channels,
     )
     
+    # Register WeChat bridge tools if WeChat channel is enabled
+    if config.channels.wechat.enabled:
+        from nanobot.agent.tools.wechat_bridge import WECHAT_BRIDGE_TOOLS
+        bridge_url = config.channels.wechat.bridge_url.replace("ws://", "http://").replace("/ws", "")
+        for tool_cls in WECHAT_BRIDGE_TOOLS:
+            agent.tools.register(tool_cls(bridge_url=bridge_url))
+
     # Set cron callback (needs agent)
     async def on_cron_job(job: CronJob) -> str | None:
         """Execute a cron job through the agent."""
@@ -310,7 +317,7 @@ def gateway(
             ))
         return response
     cron.on_job = on_cron_job
-    
+
     # Create channel manager
     channels = ChannelManager(config, bus)
 
@@ -396,6 +403,23 @@ def gateway(
     asyncio.run(run())
 
 
+# ============================================================================
+# Web UI
+# ============================================================================
+
+
+@app.command()
+def web(
+    port: int = typer.Option(8080, "--port", "-p", help="Web UI port"),
+    host: str = typer.Option("127.0.0.1", "--host", help="Web UI host"),
+):
+    """Start the nanobot web management UI."""
+    import uvicorn
+    from nanobot.web.app import create_app
+
+    console.print(f"{__logo__} Starting nanobot web UI at http://{host}:{port}")
+    web_app = create_app()
+    uvicorn.run(web_app, host=host, port=port, log_level="info")
 
 
 # ============================================================================

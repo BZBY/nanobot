@@ -1,0 +1,26 @@
+{% extends "base.html" %}
+{% block title_suffix %} - Memory{% endblock %}
+
+{% block content %}
+<h1>Memory</h1>
+
+<h2>MEMORY.md (Long-term facts)</h2>
+{% if long_term %}
+<div class="memory-content">{{ long_term }}</div>
+{% else %}
+<div class="empty">
+    <p>No long-term memory yet.</p>
+</div>
+{% endif %}
+
+<div class="mt-24">
+    <h2>HISTORY.md (Searchable log)</h2>
+    {% if history %}
+    <div class="memory-content">{{ history }}</div>
+    {% else %}
+    <div class="empty">
+        <p>No history entries yet.</p>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

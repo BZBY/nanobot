@@ -1,0 +1,42 @@
+{% extends "base.html" %}
+{% block title_suffix %} - Config{% endblock %}
+
+{% block content %}
+<h1>Configuration</h1>
+<p class="text-muted text-sm mb-16">Edit the JSON below and click Save. Changes are written to <code>~/.nanobot/config.json</code>.</p>
+
+<textarea id="configEditor" class="config-editor">{{ config_json }}</textarea>
+
+<div class="mt-24">
+    <button class="btn btn-primary" onclick="saveConfig()">Save</button>
+    <button class="btn" onclick="formatJson()">Format JSON</button>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function formatJson() {
+    const el = document.getElementById('configEditor');
+    try {
+        const obj = JSON.parse(el.value);
+        el.value = JSON.stringify(obj, null, 2);
+        showToast('Formatted', true);
+    } catch (e) {
+        showToast('Invalid JSON: ' + e.message, false);
+    }
+}
+
+async function saveConfig() {
+    const el = document.getElementById('configEditor');
+    let parsed;
+    try {
+        parsed = JSON.parse(el.value);
+    } catch (e) {
+        showToast('Invalid JSON: ' + e.message, false);
+        return;
+    }
+    await apiCall('POST', '/api/config', { config: parsed });
+    showToast('Config saved', true);
+}
+</script>
+{% endblock %}

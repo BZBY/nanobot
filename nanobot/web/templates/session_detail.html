@@ -1,0 +1,30 @@
+{% extends "base.html" %}
+{% block title_suffix %} - {{ session_key }}{% endblock %}
+
+{% block content %}
+<h1>
+    <a href="/sessions" style="color:var(--text-muted);text-decoration:none;">&larr;</a>
+    Session: <span class="mono">{{ session_key }}</span>
+</h1>
+
+{% if error %}
+<div class="empty">
+    <p>{{ error }}</p>
+</div>
+{% elif messages %}
+<p class="text-muted text-sm mb-16">{{ messages|length }} messages</p>
+<div class="chat">
+    {% for m in messages %}
+    <div class="msg msg-{{ m.role }}">
+        <div class="msg-role">{{ m.role }}</div>
+        <div>{{ m.content }}</div>
+        {% if m.timestamp %}<div class="msg-ts">{{ m.timestamp }}</div>{% endif %}
+    </div>
+    {% endfor %}
+</div>
+{% else %}
+<div class="empty">
+    <p>No messages in this session.</p>
+</div>
+{% endif %}
+{% endblock %}
