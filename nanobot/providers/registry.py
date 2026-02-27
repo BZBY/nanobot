@@ -169,7 +169,9 @@ PROVIDERS: tuple[ProviderSpec, ...] = (
         display_name="Anthropic",
         litellm_prefix="",
         skip_prefixes=(),
-        env_extras=(),
+        env_extras=(
+            ("ANTHROPIC_API_BASE", "{api_base}"),
+        ),
         is_gateway=False,
         is_local=False,
         detect_by_key_prefix="",
