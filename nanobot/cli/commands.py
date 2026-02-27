@@ -489,7 +489,7 @@ def web(
     import uvicorn
     from nanobot.web.app import create_app
 
-    console.print(f"{__logo__} Starting nanobot web UI at http://{host}:{port}")
+    print(f"Starting nanobot web UI at http://{host}:{port}")
     web_app = create_app()
     uvicorn.run(web_app, host=host, port=port, log_level="info")
 

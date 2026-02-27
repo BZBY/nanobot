@@ -254,6 +254,9 @@ td a:hover { text-decoration: underline; }
     padding: 16px;
 }
 
+a.card { transition: border-color .15s; }
+a.card:hover { border-color: var(--accent); }
+
 .card h3 {
     font-size: 15px;
     margin-bottom: 6px;
