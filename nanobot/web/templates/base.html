@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>nanobot{% block title_suffix %}{% endblock %}</title>
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+    <aside class="sidebar">
+        <div class="logo">&#x1F408; nanobot</div>
+        <nav>
+            <a href="/sessions" class="{% if page == 'sessions' %}active{% endif %}">Sessions</a>
+            <a href="/config" class="{% if page == 'config' %}active{% endif %}">Config</a>
+            <a href="/cron" class="{% if page == 'cron' %}active{% endif %}">Cron Jobs</a>
+            <a href="/memory" class="{% if page == 'memory' %}active{% endif %}">Memory</a>
+            <a href="/skills" class="{% if page == 'skills' %}active{% endif %}">Skills</a>
+        </nav>
+    </aside>
+
+    <main class="main">
+        {% block content %}{% endblock %}
+    </main>
+
+    <div id="toast" class="toast"></div>
+
+    <script>
+    function showToast(msg, ok) {
+        const el = document.getElementById('toast');
+        el.textContent = msg;
+        el.className = 'toast show ' + (ok ? 'toast-ok' : 'toast-err');
+        setTimeout(() => { el.className = 'toast'; }, 3000);
+    }
+
+    async function apiCall(method, url, body) {
+        try {
+            const opts = { method, headers: { 'Content-Type': 'application/json' } };
+            if (body) opts.body = JSON.stringify(body);
+            const res = await fetch(url, opts);
+            const data = await res.json();
+            if (!res.ok) throw new Error(data.error || 'Request failed');
+            return data;
+        } catch (e) {
+            showToast(e.message, false);
+            throw e;
+        }
+    }
+    </script>
+
+    {% block scripts %}{% endblock %}
+</body>
+</html>

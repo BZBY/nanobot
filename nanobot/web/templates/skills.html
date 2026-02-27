@@ -1,0 +1,31 @@
+{% extends "base.html" %}
+{% block title_suffix %} - Skills{% endblock %}
+
+{% block content %}
+<h1>Skills</h1>
+
+{% if skills %}
+<div class="card-grid">
+    {% for s in skills %}
+    <div class="card">
+        <h3>
+            {{ s.name }}
+            {% if s.available %}
+                <span class="badge badge-green">available</span>
+            {% else %}
+                <span class="badge badge-red">unavailable</span>
+            {% endif %}
+        </h3>
+        <p>{{ s.description or 'No description' }}</p>
+        <p class="text-sm" style="margin-top:8px;">
+            <span class="badge badge-muted">{{ s.source }}</span>
+        </p>
+    </div>
+    {% endfor %}
+</div>
+{% else %}
+<div class="empty">
+    <p>No skills found.</p>
+</div>
+{% endif %}
+{% endblock %}
