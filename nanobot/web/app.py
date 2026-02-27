@@ -192,6 +192,33 @@ def create_app() -> FastAPI:
             "page": "skills",
         })
 
+    @app.get("/skills/{name}", response_class=HTMLResponse)
+    async def skill_detail_page(request: Request, name: str):
+        content = skills_loader.load_skill(name)
+        if content is None:
+            return templates.TemplateResponse("skill_detail.html", {
+                "request": request,
+                "skill_name": name,
+                "content": "",
+                "source": "",
+                "editable": False,
+                "page": "skills",
+                "error": "Skill not found",
+            })
+        # Determine source and editability
+        all_skills = skills_loader.list_skills(filter_unavailable=False)
+        info = next((s for s in all_skills if s["name"] == name), None)
+        source = info["source"] if info else "unknown"
+        editable = source == "workspace"
+        return templates.TemplateResponse("skill_detail.html", {
+            "request": request,
+            "skill_name": name,
+            "content": content,
+            "source": source,
+            "editable": editable,
+            "page": "skills",
+        })
+
     # ========================================================================
     # API routes (JSON)
     # ========================================================================
@@ -265,6 +292,19 @@ def create_app() -> FastAPI:
         if result:
             return JSONResponse({"ok": True, "enabled": result.enabled})
         return JSONResponse({"error": "Failed to toggle"}, status_code=500)
+
+    @app.put("/api/skills/{name}")
+    async def api_save_skill(name: str, request: Request):
+        try:
+            body = await request.json()
+            content = body.get("content", "")
+            skill_path = skills_loader.workspace_skills / name / "SKILL.md"
+            if not skill_path.parent.exists():
+                skill_path.parent.mkdir(parents=True, exist_ok=True)
+            skill_path.write_text(content, encoding="utf-8")
+            return JSONResponse({"ok": True})
+        except Exception as e:
+            return JSONResponse({"error": str(e)}, status_code=400)
 
     @app.delete("/api/sessions/{key:path}")
     async def api_delete_session(key: str):

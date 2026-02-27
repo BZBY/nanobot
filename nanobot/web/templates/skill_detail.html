@@ -1,0 +1,51 @@
+{% extends "base.html" %}
+{% block title_suffix %} - {{ skill_name }}{% endblock %}
+
+{% block content %}
+<h1>
+    <a href="/skills" style="color:var(--text-muted);text-decoration:none;">&larr;</a>
+    Skill: <span class="mono">{{ skill_name }}</span>
+    <span class="badge badge-{{ 'purple' if source == 'workspace' else 'muted' }}" style="vertical-align:middle;">{{ source }}</span>
+</h1>
+
+{% if error %}
+<div class="empty">
+    <p>{{ error }}</p>
+</div>
+{% else %}
+
+{% if editable %}
+<p class="text-muted text-sm mb-16">This is a workspace skill &mdash; you can edit it directly.</p>
+<textarea id="skillEditor" class="config-editor" style="min-height:400px;">{{ content }}</textarea>
+<div class="mt-24">
+    <button class="btn btn-primary" onclick="saveSkill()">Save</button>
+    <button class="btn" onclick="location.href='/skills'">Back to Skills</button>
+</div>
+{% else %}
+<p class="text-muted text-sm mb-16">Built-in skill (read-only). Copy to workspace to customize.</p>
+<div class="memory-content">{{ content }}</div>
+<div class="mt-24">
+    <button class="btn btn-primary" onclick="copyToWorkspace()">Copy to Workspace</button>
+    <button class="btn" onclick="location.href='/skills'">Back to Skills</button>
+</div>
+{% endif %}
+
+{% endif %}
+{% endblock %}
+
+{% block scripts %}
+<script>
+async function saveSkill() {
+    const content = document.getElementById('skillEditor').value;
+    await apiCall('PUT', '/api/skills/{{ skill_name }}', { content });
+    showToast('Skill saved', true);
+}
+
+async function copyToWorkspace() {
+    const content = {{ content | tojson }};
+    await apiCall('PUT', '/api/skills/{{ skill_name }}', { content });
+    showToast('Copied to workspace — reloading...', true);
+    setTimeout(() => location.reload(), 800);
+}
+</script>
+{% endblock %}

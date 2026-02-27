@@ -7,7 +7,7 @@
 {% if skills %}
 <div class="card-grid">
     {% for s in skills %}
-    <div class="card">
+    <a href="/skills/{{ s.name }}" class="card" style="text-decoration:none;color:inherit;">
         <h3>
             {{ s.name }}
             {% if s.available %}
@@ -20,7 +20,7 @@
         <p class="text-sm" style="margin-top:8px;">
             <span class="badge badge-muted">{{ s.source }}</span>
         </p>
-    </div>
+    </a>
     {% endfor %}
 </div>
 {% else %}
