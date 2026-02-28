@@ -167,12 +167,82 @@ Connect nanobot to your favorite chat platform.
 | **Telegram** | Bot token from @BotFather |
 | **Discord** | Bot token + Message Content intent |
 | **WhatsApp** | QR code scan |
+| **WeChat 4.0** | MaaWxAuto bridge + DB key (optional) |
 | **Feishu** | App ID + App Secret |
 | **Mochat** | Claw token (auto-setup available) |
 | **DingTalk** | App Key + App Secret |
 | **Slack** | Bot token + App-Level token |
 | **Email** | IMAP/SMTP credentials |
 | **QQ** | App ID + App Secret |
+
+<details>
+<summary><b>WeChat 4.0</b> (via MaaWxAuto)</summary>
+
+Connects to WeChat 4.0 (Qt/C++ desktop client) through the [MaaWxAuto](https://github.com/BZBY/MaaWxAuto) bridge — a visual automation library based on MaaFramework. Supports OCR-based UI automation and optional DB direct-read for reliable message retrieval.
+
+**Prerequisites:**
+- WeChat 4.0 desktop client running on the same machine
+- [MaaWxAuto](https://github.com/BZBY/MaaWxAuto) bridge server running (`python -m bridge`)
+- (Optional) DB key for encrypted message database access
+
+**1. Start the MaaWxAuto bridge**
+
+```bash
+cd MaaWxAuto
+uv run python -m bridge
+# Bridge starts on ws://127.0.0.1:9574/ws
+```
+
+**2. Configure** (`~/.nanobot/config.json`)
+
+```json
+{
+  "channels": {
+    "wechat": {
+      "enabled": true,
+      "bridge_url": "ws://127.0.0.1:9574/ws",
+      "bot_name": "YourBotName",
+      "group_policy": "mention",
+      "listen_chats": ["文件传输助手", "GroupChatName"],
+      "strip_markdown": true
+    }
+  }
+}
+```
+
+| Option | Default | Description |
+|--------|---------|-------------|
+| `bridge_url` | `ws://127.0.0.1:9574/ws` | MaaWxAuto bridge WebSocket URL |
+| `bot_name` | `""` | Bot's display name in WeChat (for @mention detection in groups) |
+| `group_policy` | `"mention"` | `"mention"` = respond only when @mentioned; `"open"` = respond to all |
+| `listen_chats` | `[]` | Chat names to monitor for new messages |
+| `strip_markdown` | `true` | Strip Markdown formatting before sending to WeChat |
+
+**3. Run**
+
+```bash
+nanobot gateway
+```
+
+**WeChat-specific tools** (auto-registered when WeChat channel is enabled):
+
+| Tool | Description |
+|------|-------------|
+| `wechat_list_sessions` | List visible chat sessions |
+| `wechat_add_listener` | Start monitoring a chat |
+| `wechat_health` | Check bridge connection status |
+| `read_file_content` | Read files shared in chats (docx/xlsx/pdf/txt) |
+| `export_pdf` | Export Markdown content as a styled PDF with CJK font support |
+
+**Long reply → PDF export:**
+
+When the agent's response exceeds 500 characters or contains tables/analysis, it automatically exports the content as a PDF file and sends it via WeChat's file transfer — bypassing text message length limitations.
+
+**Group chat context buffering:**
+
+In `mention` mode, non-mention messages in group chats are buffered (up to 10 messages, 5-minute TTL). When someone @mentions the bot, buffered messages are prepended as context so the agent understands the recent conversation.
+
+</details>
 
 <details>
 <summary><b>Telegram</b> (Recommended)</summary>
