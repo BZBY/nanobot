@@ -294,10 +294,12 @@ def gateway(
     
     # Register WeChat bridge tools if WeChat channel is enabled
     if config.channels.wechat.enabled:
-        from nanobot.agent.tools.wechat_bridge import WECHAT_BRIDGE_TOOLS
+        from nanobot.agent.tools.wechat_bridge import WECHAT_BRIDGE_TOOLS, WECHAT_LOCAL_TOOLS
         bridge_url = config.channels.wechat.bridge_url.replace("ws://", "http://").replace("/ws", "")
         for tool_cls in WECHAT_BRIDGE_TOOLS:
             agent.tools.register(tool_cls(bridge_url=bridge_url))
+        for tool_cls in WECHAT_LOCAL_TOOLS:
+            agent.tools.register(tool_cls())
 
     # Set cron callback (needs agent)
     async def on_cron_job(job: CronJob) -> str | None:
