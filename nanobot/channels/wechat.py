@@ -27,6 +27,11 @@ from nanobot.config.schema import WeChatConfig
 # window is treated as the DB echo of our own send and suppressed.
 _ECHO_WINDOW = 30.0
 
+# Context buffer: hold non-mention rich media messages so the next
+# @mention in the same chat can include them as context.
+_CONTEXT_BUFFER_TTL = 300.0   # 5 minutes expiry
+_CONTEXT_BUFFER_MAX = 10      # max buffered messages per chat
+
 
 def _strip_markdown(text: str) -> str:
     """Convert Markdown text to plain text suitable for WeChat.
@@ -77,6 +82,8 @@ class WeChatChannel(BaseChannel):
         self._listen_registered: set[str] = set()
         # Track recent bot sends: (chat_id, content_prefix) -> timestamp
         self._recent_sends: dict[tuple[str, str], float] = {}
+        # Context buffer: chat_id -> [(timestamp, sender, msg_type, content, metadata)]
+        self._context_buffer: dict[str, list[tuple[float, str, str, str, dict]]] = {}
 
     async def start(self) -> None:
         """Connect to MaaWxAuto bridge and listen for WeChat messages."""
@@ -247,11 +254,20 @@ class WeChatChannel(BaseChannel):
                 # Self-sent but NOT a bot echo → let it through
 
             # Group mention filter
-            should_respond, content = self._should_respond(content, is_group)
+            should_respond, cleaned = self._should_respond(content, is_group)
             if not should_respond:
-                logger.debug("Skipped (no mention): [{}] {}: {}",
-                             chat_id, sender, content[:40])
+                # Non-mention → buffer all group messages as context
+                if is_group:
+                    msg_type_str = data.get("msg_type", "text")
+                    self._buffer_context(chat_id, sender, msg_type_str, content, data)
+                else:
+                    logger.debug("Skipped (no mention): [{}] {}: {}",
+                                 chat_id, sender, content[:40])
                 return
+
+            # Mention hit → flush buffered context and prepend to content
+            context_lines = self._flush_context(chat_id) if is_group else ""
+            content = (context_lines + "\n" + cleaned) if context_lines else cleaned
 
             # Use sender as sender_id for access control
             sender_id = sender
@@ -279,3 +295,76 @@ class WeChatChannel(BaseChannel):
 
         elif msg_type == "error":
             logger.error("Bridge error: {}", data.get("message"))
+
+    # ------------------------------------------------------------------
+    # Context buffer for non-mention messages in group chats
+    # ------------------------------------------------------------------
+
+    def _buffer_context(
+        self, chat_id: str, sender: str, msg_type: str, content: str, data: dict[str, Any],
+    ) -> None:
+        """Buffer a non-mention group message for later @mention context."""
+        now = time.time()
+        buf = self._context_buffer.setdefault(chat_id, [])
+        # Evict expired entries
+        buf[:] = [(t, s, mt, c, m) for t, s, mt, c, m in buf if now - t < _CONTEXT_BUFFER_TTL]
+        # Capacity cap
+        if len(buf) >= _CONTEXT_BUFFER_MAX:
+            buf.pop(0)
+        buf.append((now, sender, msg_type, content, {
+            "file_name": data.get("file_name"),
+            "file_size": data.get("file_size"),
+            "file_path": data.get("file_path"),
+            "url": data.get("url"),
+            "title": data.get("title"),
+        }))
+        logger.debug("Buffered {} from {} in [{}] ({} buffered)", msg_type, sender, chat_id, len(buf))
+
+    def _flush_context(self, chat_id: str) -> str:
+        """Pop and format all buffered context for *chat_id*."""
+        buf = self._context_buffer.pop(chat_id, [])
+        if not buf:
+            return ""
+        now = time.time()
+        lines = []
+        for ts, sender, msg_type, content, meta in buf:
+            if now - ts > _CONTEXT_BUFFER_TTL:
+                continue
+            line = self._format_context_line(sender, msg_type, content, meta)
+            if line:
+                lines.append(line)
+        return "\n".join(lines)
+
+    @staticmethod
+    def _format_context_line(sender: str, msg_type: str, content: str, meta: dict) -> str:
+        """Format one buffered message into a human-readable line."""
+        if msg_type == "text":
+            return f"[{sender}] {content}"
+        if msg_type == "file":
+            name = meta.get("file_name") or content
+            size = meta.get("file_size")
+            path = meta.get("file_path") or ""
+            size_str = f" ({WeChatChannel._fmt_size(size)})" if size else ""
+            path_str = f" [path: {path}]" if path else ""
+            return f"[{sender} 发送了文件] {name}{size_str}{path_str}"
+        if msg_type == "link":
+            title = meta.get("title") or content
+            url = meta.get("url") or ""
+            return f"[{sender} 分享了链接] {title}" + (f" ({url})" if url else "")
+        if msg_type == "image":
+            return f"[{sender} 发送了图片]"
+        if msg_type == "video":
+            return f"[{sender} 发送了视频]"
+        if msg_type == "quote":
+            return f"[{sender} 引用回复] {content}"
+        return f"[{sender} 发送了{msg_type}消息] {content[:50]}"
+
+    @staticmethod
+    def _fmt_size(n: int | None) -> str:
+        if not n:
+            return ""
+        if n < 1024:
+            return f"{n}B"
+        if n < 1024 * 1024:
+            return f"{n / 1024:.1f}KB"
+        return f"{n / 1024 / 1024:.1f}MB"
